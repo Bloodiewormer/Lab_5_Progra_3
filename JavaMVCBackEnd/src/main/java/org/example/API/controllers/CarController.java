@@ -1,11 +1,13 @@
 package org.example.API.controllers;
 
 import com.google.gson.Gson;
+import org.example.DataAccess.services.AuthService;
 import org.example.Domain.dtos.RequestDto;
 import org.example.Domain.dtos.ResponseDto;
 import org.example.Domain.dtos.auth.UserResponseDto;
 import org.example.Domain.dtos.cars.*;
 import org.example.Domain.models.Car;
+import org.example.Domain.models.User;
 import org.example.DataAccess.services.CarService;
 
 import java.util.List;
@@ -14,10 +16,13 @@ import java.util.stream.Collectors;
 public class CarController {
 
     private final CarService carService;
+    private final AuthService authService;
     private final Gson gson = new Gson();
 
-    public CarController(CarService carService) {
+    // ✅ UPDATE CONSTRUCTOR
+    public CarController(CarService carService, AuthService authService) {
         this.carService = carService;
+        this.authService = authService;
     }
 
     public ResponseDto route(RequestDto request) {
@@ -102,20 +107,31 @@ public class CarController {
         }
     }
 
-    // --- LIST CARS ---
+    // --- LIST CARS ---  ✅ FIXED VERSION
     private ResponseDto handleListCars(RequestDto request) {
         try {
             if (request.getToken() == null || request.getToken().isEmpty()) {
                 return new ResponseDto(false, "Unauthorized", null);
             }
 
-            List<Car> cars = carService.getAllCars();
+            // ✅ GET USER ID FROM TOKEN
+            Long userId = Long.parseLong(request.getToken());
+
+            // ✅ GET USER FROM DATABASE
+            User user = authService.getUserById(userId);
+            if (user == null) {
+                return new ResponseDto(false, "User not found", null);
+            }
+
+            // ✅ USE getCarsByUser INSTEAD OF getAllCars - NO MORE HARDCODED DATA!
+            List<Car> cars = carService.getCarsByUser(user);
+
             List<CarResponseDto> carDtos = cars.stream()
                     .map(this::toResponseDto)
                     .collect(Collectors.toList());
 
-            ListCarsResponseDto response = new ListCarsResponseDto(carDtos);
-            return new ResponseDto(true, "Cars retrieved successfully", gson.toJson(response));
+            ListCarsResponseDto responseDto = new ListCarsResponseDto(carDtos);
+            return new ResponseDto(true, "Cars retrieved successfully", gson.toJson(responseDto));
         } catch (Exception e) {
             System.out.println("Error in handleListCars: " + e.getMessage());
             throw e;
@@ -129,8 +145,8 @@ public class CarController {
                 return new ResponseDto(false, "Unauthorized", null);
             }
 
-            DeleteCarRequestDto dto = gson.fromJson(request.getData(), DeleteCarRequestDto.class);
-            Car car = carService.getCarById(dto.getId());
+            Long carId = gson.fromJson(request.getData(), Long.class);
+            Car car = carService.getCarById(carId);
 
             if (car == null) {
                 return new ResponseDto(false, "Car not found", null);
@@ -144,9 +160,9 @@ public class CarController {
         }
     }
 
-    // --- Helper method ---
+    // --- HELPER: Convert Car to DTO ---
     private CarResponseDto toResponseDto(Car car) {
-        var owner =  new UserResponseDto(
+        UserResponseDto owner = new UserResponseDto(
                 car.getOwner().getId(),
                 car.getOwner().getUsername(),
                 car.getOwner().getEmail(),

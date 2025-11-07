@@ -3,6 +3,7 @@ package org.example.Server;
 import com.google.gson.Gson;
 import org.example.API.controllers.AuthController;
 import org.example.API.controllers.CarController;
+import org.example.API.controllers.MaintenanceController;
 import org.example.Domain.dtos.RequestDto;
 import org.example.Domain.dtos.ResponseDto;
 import org.example.Domain.dtos.auth.UserResponseDto;
@@ -18,14 +19,17 @@ public class ClientHandler implements Runnable {
     private final SocketServer server;
     private final Gson gson = new Gson();
     private PrintWriter out;
+    private final MaintenanceController maintenanceController;
 
     public ClientHandler(Socket clientSocket,
                          AuthController authController,
                          CarController carController,
+                         MaintenanceController maintenanceController,
                          SocketServer server) {
         this.clientSocket = clientSocket;
         this.authController = authController;
         this.carController = carController;
+        this.maintenanceController = maintenanceController;
         this.server = server;
     }
 
@@ -66,7 +70,6 @@ public class ClientHandler implements Runnable {
             case "Auth":
                 response = authController.route(request);
 
-                // If login successful, broadcast notification
                 if ("login".equals(request.getRequest()) && response.isSuccess()) {
                     UserResponseDto user = gson.fromJson(response.getData(), UserResponseDto.class);
                     String notification = "User " + user.getUsername() + " just logged in!";
@@ -77,6 +80,10 @@ public class ClientHandler implements Runnable {
 
             case "Cars":
                 response = carController.route(request);
+                break;
+
+            case "Maintenance":
+                response = maintenanceController.route(request);
                 break;
 
             default:

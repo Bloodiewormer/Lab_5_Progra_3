@@ -5,8 +5,10 @@ import Presentation.Observable;
 import Presentation.Views.CarsView;
 import Presentation.Views.LoginView;
 import Presentation.Views.MainView;
+import Presentation.Views.MaintenanceView;
 import Services.AuthService;
 import Services.CarService;
+import Services.MaintenanceService;
 import Utilities.EventType;
 
 import javax.swing.*;
@@ -76,8 +78,14 @@ public class LoginController extends Observable {
         CarService carService = new CarService(host, serverPort);
         new CarsController(carsView, carService);
 
+        MaintenanceView maintenanceView = new MaintenanceView(mainView);
+        MaintenanceService  maintenanceService = new MaintenanceService("localhost", 7000);
+        MaintenanceController maintenanceController = new MaintenanceController(maintenanceView, maintenanceService, currentUser.getId());
+
+
         Dictionary<String, JPanel> tabs = new Hashtable<>();
         tabs.put("Cars", carsView.getContentPanel());
+        tabs.put("Maintenance", maintenanceView.getContentPanel());
 
         // Conectarse al puerto 7001 para escuchar transmisiones del servidor
         mainView.connectToMessages(host, messagesPort);

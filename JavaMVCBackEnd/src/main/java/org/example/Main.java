@@ -2,9 +2,11 @@ package org.example;
 
 import org.example.API.controllers.AuthController;
 import org.example.API.controllers.CarController;
+import org.example.API.controllers.MaintenanceController;
 import org.example.DataAccess.services.AuthService;
 import org.example.DataAccess.services.CarService;
 import org.example.DataAccess.HibernateUtil;
+import org.example.DataAccess.services.MaintenanceService;
 import org.example.Server.SocketServer;
 import org.example.Server.MessageBroadcaster;
 
@@ -14,10 +16,15 @@ public class Main {
 
         // Initialize services and controllers
         AuthService authService = new AuthService(sessionFactory);
-        AuthController authController = new AuthController(authService);
-
         CarService carService = new CarService(sessionFactory);
-        CarController carController = new CarController(carService);
+        MaintenanceService maintenanceService = new MaintenanceService(sessionFactory);
+
+        AuthController authController = new AuthController(authService);
+        CarController carController = new CarController(carService, authService);
+        MaintenanceController maintenanceController = new MaintenanceController(maintenanceService);
+
+
+
 
         var createUsers = true;
         if(createUsers) {
@@ -28,10 +35,7 @@ public class Main {
 
         // Server for request/response (API-like)
         int requestPort = 7000;
-        SocketServer requestServer = new SocketServer(
-                requestPort,
-                authController,
-                carController);
+        SocketServer requestServer = new SocketServer(requestPort, authController, carController, maintenanceController);
 
         // Server for chat/broadcasting (persistent connections)
         int messagePort = 7001;

@@ -2,6 +2,8 @@ package org.example.Domain.models;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "cars")
@@ -28,6 +30,9 @@ public class Car {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "carMaintenance", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Maintenance> maintenances = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
@@ -98,6 +103,14 @@ public class Car {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<Maintenance> getMaintenances() {
+        return maintenances;
+    }
+
+    public void setMaintenances(List<Maintenance> maintenances) {
+        this.maintenances = maintenances;
     }
 
     @Override

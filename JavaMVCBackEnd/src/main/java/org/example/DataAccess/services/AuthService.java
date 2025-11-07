@@ -145,4 +145,14 @@ public class AuthService {
             throw new RuntimeException("Error inesperado al intentar crear el hash del usuario.", e);
         }
     }
+
+    public User getUserById(Long id) {
+        try (Session session = sessionFactory.openSession()) {
+            return session.find(User.class, id);
+        } catch (Exception e) {
+            String message = String.format("An error occurred when processing: %s. Details: %s", "getUserById", e);
+            System.out.println(message);
+            throw e;
+        }
+    }
 }
