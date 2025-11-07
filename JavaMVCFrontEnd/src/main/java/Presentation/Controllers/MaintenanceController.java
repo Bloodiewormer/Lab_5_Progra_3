@@ -11,8 +11,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.Future;
 
-
-
 public class MaintenanceController {
     private final MaintenanceView view;
     private final MaintenanceService service;
@@ -52,7 +50,9 @@ public class MaintenanceController {
                 List<MaintenanceResponseDto> maintenances = future.get();
 
                 SwingUtilities.invokeLater(() -> {
-                    view.getTableModel().setMaintenances(maintenances);
+                    if (maintenances != null) {
+                        view.getTableModel().setMaintenances(maintenances);
+                    }
                     view.showLoading(false);
                 });
             } catch (Exception ex) {
@@ -72,17 +72,16 @@ public class MaintenanceController {
 
         String description = view.getDescriptionField().getText().trim();
         String type = view.getSelectedType();
-        //String dateStr = view.getDateField().getText().trim();
+        String dateTimeStr = view.getFormattedDateTime();
 
-        if (description.isEmpty() /*|| dateStr.isEmpty()*/) {
+        if (description.isEmpty() || dateTimeStr == null) {
             JOptionPane.showMessageDialog(null, "Please fill all fields", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         try {
-            // Validate and parse date
-            //LocalDateTime date = LocalDateTime.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            //String isoDate = date.format(DATE_FORMATTER);
+            LocalDateTime dateTime = LocalDateTime.parse(dateTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String isoDate = dateTime.format(DATE_FORMATTER);
 
             view.showLoading(true);
 
@@ -110,7 +109,7 @@ public class MaintenanceController {
                 }
             }).start();
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Invalid date format. Use: yyyy-MM-dd HH:mm:ss", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Invalid date/time", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -123,23 +122,23 @@ public class MaintenanceController {
 
         String description = view.getDescriptionField().getText().trim();
         String type = view.getSelectedType();
-        //String dateStr = view.getDateField().getText().trim();
+        String dateTimeStr = view.getFormattedDateTime();
 
-        if (description.isEmpty() /*|| dateStr.isEmpty()*/) {
+        if (description.isEmpty() || dateTimeStr == null) {
             JOptionPane.showMessageDialog(null, "Please fill all fields", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         try {
-            //LocalDateTime date = LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-            //String isoDate = date.format(DATE_FORMATTER);
+            LocalDateTime dateTime = LocalDateTime.parse(dateTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String isoDate = dateTime.format(DATE_FORMATTER);
 
             MaintenanceResponseDto selected = view.getTableModel().getMaintenanceAt(selectedRow);
             view.showLoading(true);
 
             new Thread(() -> {
                 try {
-                   // UpdateMaintenanceRequestDto dto = new UpdateMaintenanceRequestDto(selected.getId(), description, type, /*isoDate*/);
+                    UpdateMaintenanceRequestDto dto = new UpdateMaintenanceRequestDto(selected.getId(), description, type, isoDate);
                     Future<MaintenanceResponseDto> future = service.updateMaintenanceAsync(dto, userId);
                     MaintenanceResponseDto result = future.get();
 
@@ -161,7 +160,7 @@ public class MaintenanceController {
                 }
             }).start();
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "Invalid date format", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Invalid date/time", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

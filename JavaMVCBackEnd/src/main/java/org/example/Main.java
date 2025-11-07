@@ -27,7 +27,7 @@ public class Main {
 
 
         var createUsers = true;
-        if(createUsers) {
+        if (createUsers) {
             authService.register("user", "email@example.com", "pass", "USER");
             authService.register("otro", "otro@example.com", "pass", "USER");
 

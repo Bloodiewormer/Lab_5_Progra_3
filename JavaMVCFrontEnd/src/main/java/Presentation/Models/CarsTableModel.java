@@ -1,21 +1,15 @@
 package Presentation.Models;
 
 import Domain.Dtos.cars.CarResponseDto;
-import Presentation.IObserver;
-import Utilities.EventType;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CarsTableModel extends AbstractTableModel implements IObserver {
-
+public class CarsTableModel extends AbstractTableModel {
+    private final String[] columnNames = {"ID", "Make", "Model", "Year", "Owner"};
     private final List<CarResponseDto> cars = new ArrayList<>();
-    private final String[] columnNames = {"ID", "Make", "Model", "Year", "Owner ID"};
 
-    // -------------------------
-    // AbstractTableModel methods
-    // -------------------------
     @Override
     public int getRowCount() {
         return cars.size();
@@ -39,57 +33,35 @@ public class CarsTableModel extends AbstractTableModel implements IObserver {
             case 1 -> car.getMake();
             case 2 -> car.getModel();
             case 3 -> car.getYear();
-            case 4 -> car.getOwner().getUsername();
+            case 4 -> car.getOwner() != null ? car.getOwner().getUsername() : "Unknown";
             default -> null;
         };
     }
 
-    // -------------------------
-    // Observer implementation
-    // -------------------------
-    @Override
-    public void update(EventType eventType, Object data) {
-        if (data == null) return;
-
-        switch (eventType) {
-            case CREATED -> {
-                CarResponseDto newCar = (CarResponseDto) data;
-                cars.add(newCar);
-                fireTableRowsInserted(cars.size() - 1, cars.size() - 1);
-            }
-            case UPDATED -> {
-                CarResponseDto updatedCar = (CarResponseDto) data;
-                for (int i = 0; i < cars.size(); i++) {
-                    if (cars.get(i).getId().equals(updatedCar.getId())) {
-                        cars.set(i, updatedCar);
-                        fireTableRowsUpdated(i, i);
-                        break;
-                    }
-                }
-            }
-            case DELETED -> {
-                Long deletedId = (Long) data;
-                for (int i = 0; i < cars.size(); i++) {
-                    if (cars.get(i).getId().equals(deletedId)) {
-                        cars.remove(i);
-                        fireTableRowsDeleted(i, i);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // -------------------------
-    // Utility methods
-    // -------------------------
-    public List<CarResponseDto> getCars() {
-        return new ArrayList<>(cars);
-    }
-
     public void setCars(List<CarResponseDto> newCars) {
-        cars.clear();
-        if (newCars != null) cars.addAll(newCars);
+        this.cars.clear();
+        if (newCars != null) {
+            this.cars.addAll(newCars);
+        }
         fireTableDataChanged();
+    }
+
+    public void addCar(CarResponseDto car) {
+        this.cars.add(car);
+        fireTableRowsInserted(cars.size() - 1, cars.size() - 1);
+    }
+
+    public void updateCar(int rowIndex, CarResponseDto car) {
+        this.cars.set(rowIndex, car);
+        fireTableRowsUpdated(rowIndex, rowIndex);
+    }
+
+    public void removeCar(int rowIndex) {
+        this.cars.remove(rowIndex);
+        fireTableRowsDeleted(rowIndex, rowIndex);
+    }
+
+    public CarResponseDto getCarAt(int rowIndex) {
+        return cars.get(rowIndex);
     }
 }

@@ -1,7 +1,10 @@
-CREATE TABLE maintenance
-(
-    id            INT AUTO_INCREMENT NOT NULL,
-    `description` VARCHAR(100)       NULL,
-    type          VARCHAR(255)       NULL,
-    CONSTRAINT pk_maintenance PRIMARY KEY (id)
-);
+CREATE TABLE  maintenance (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    description VARCHAR(100),
+    type VARCHAR(50) NOT NULL,
+    maintenance_date TIMESTAMP NOT NULL,
+    car_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_car_maintenance FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE
+    );

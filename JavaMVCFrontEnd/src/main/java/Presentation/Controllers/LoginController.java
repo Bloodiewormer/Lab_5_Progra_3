@@ -1,95 +1,116 @@
 package Presentation.Controllers;
 
 import Domain.Dtos.auth.UserResponseDto;
-import Presentation.Observable;
+import Presentation.IObserver;
 import Presentation.Views.CarsView;
 import Presentation.Views.LoginView;
-import Presentation.Views.MainView;
 import Presentation.Views.MaintenanceView;
 import Services.AuthService;
 import Services.CarService;
 import Services.MaintenanceService;
+import Services.MessageService;
 import Utilities.EventType;
 
 import javax.swing.*;
-import java.util.Dictionary;
-import java.util.Hashtable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Future;
 
-public class LoginController extends Observable {
+public class LoginController {
+    private final LoginView view;
+    private final AuthService service;
+    private final List<IObserver> observers = new ArrayList<>();
 
-    private final LoginView loginView;
-    private final AuthService authService;
+    public LoginController(LoginView view, AuthService service) {
+        this.view = view;
+        this.service = service;
 
-    public LoginController(LoginView loginView, AuthService authService) {
-        this.loginView = loginView;
-        this.authService = authService;
-
-        this.loginView.addLoginListener(e -> handleLogin());
+        view.addLoginListener(e -> handleLogin());
     }
 
     private void handleLogin() {
-        String username = loginView.getUsername();
-        String password = loginView.getPassword();
+        String username = view.getUsername();
+        String password = view.getPassword();
 
         if (username.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(loginView, "Username or password cannot be empty", "Warning", JOptionPane.WARNING_MESSAGE);
+            notifyObservers(EventType.DELETED, "Username and password are required");
             return;
         }
 
-        loginView.showLoading(true);
+        view.showLoading(true);
 
-        SwingWorker<UserResponseDto, Void> worker = new SwingWorker<>() {
-            @Override
-            protected UserResponseDto doInBackground() throws Exception {
-                return authService.login(username, password).get();
-            }
+        new Thread(() -> {
+            try {
+                Future<UserResponseDto> future = service.login(username, password);
+                UserResponseDto user = future.get();
 
-            @Override
-            protected void done() {
-                loginView.showLoading(false);
-                try {
-                    UserResponseDto user = get();
+                SwingUtilities.invokeLater(() -> {
+                    view.showLoading(false);
                     if (user != null) {
-                        loginView.setVisible(false);
-                        openMainView();
-                        notifyObservers(EventType.UPDATED, user);
+                        notifyObservers(EventType.CREATED, user);
+                        openDashboard(user);
+                        view.dispose();
                     } else {
-                        JOptionPane.showMessageDialog(loginView, "Invalid username or password", "Error", JOptionPane.ERROR_MESSAGE);
+                        notifyObservers(EventType.DELETED, "Invalid credentials");
                     }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    JOptionPane.showMessageDialog(loginView, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-                }
+                });
+            } catch (Exception ex) {
+                SwingUtilities.invokeLater(() -> {
+                    view.showLoading(false);
+                    notifyObservers(EventType.DELETED, "Login failed: " + ex.getMessage());
+                });
             }
-        };
-        worker.execute();
+        }).start();
     }
 
-    private void openMainView() {
-        MainView mainView = new MainView();
+    private void openDashboard(UserResponseDto user) {
+        JFrame dashboardFrame = new JFrame("Car Management System - " + user.getUsername());
+        dashboardFrame.setSize(900, 650);
+        dashboardFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        dashboardFrame.setLocationRelativeTo(null);
 
-        String host = "localhost";
-        int serverPort = 7000;
-        int messagesPort = 7001;
+        JTabbedPane tabbedPane = new JTabbedPane();
 
+        CarService carService = new CarService("localhost", 7000);
+        MaintenanceService maintenanceService = new MaintenanceService("localhost", 7000);
 
-        // Inicializar las vistas que van dentro del main view.
-        CarsView carsView = new CarsView(mainView);
-        CarService carService = new CarService(host, serverPort);
-        new CarsController(carsView, carService);
+        CarsView carsView = new CarsView(dashboardFrame);
+        CarsController carsController = new CarsController(carsView, carService, user);
 
-        MaintenanceView maintenanceView = new MaintenanceView(mainView);
-        MaintenanceService  maintenanceService = new MaintenanceService("localhost", 7000);
-        MaintenanceController maintenanceController = new MaintenanceController(maintenanceView, maintenanceService, currentUser.getId());
+        MaintenanceView maintenanceView = new MaintenanceView(dashboardFrame);
+        MaintenanceController maintenanceController = new MaintenanceController(maintenanceView, maintenanceService, user.getId());
 
+        carsController.setCarSelectionListener(car -> {
+            maintenanceController.loadMaintenancesForCar(car.getId());
+            tabbedPane.setSelectedIndex(1);
+        });
 
-        Dictionary<String, JPanel> tabs = new Hashtable<>();
-        tabs.put("Cars", carsView.getContentPanel());
-        tabs.put("Maintenance", maintenanceView.getContentPanel());
+        tabbedPane.addTab("Cars", carsView.getContentPanel());
+        tabbedPane.addTab("Maintenance", maintenanceView.getContentPanel());
 
-        // Conectarse al puerto 7001 para escuchar transmisiones del servidor
-        mainView.connectToMessages(host, messagesPort);
-        mainView.AddTabs(tabs);
-        mainView.setVisible(true);
+        dashboardFrame.add(tabbedPane);
+        dashboardFrame.setVisible(true);
+
+        try {
+            MessageService messageService = new MessageService("localhost", 7001, message -> {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(dashboardFrame, message, "Notification", JOptionPane.INFORMATION_MESSAGE);
+                });
+            });
+            messageService.connect();
+        } catch (IOException ex) {
+            System.err.println("Could not connect to message service: " + ex.getMessage());
+        }
+    }
+
+    public void addObserver(IObserver observer) {
+        observers.add(observer);
+    }
+
+    private void notifyObservers(EventType eventType, Object data) {
+        for (IObserver observer : observers) {
+            observer.update(eventType, data);
+        }
     }
 }
